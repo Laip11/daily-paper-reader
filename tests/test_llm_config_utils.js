@@ -8,6 +8,7 @@ const {
   resolveSummaryLLM,
   inferProviderType,
   getDeepSeekPreset,
+  getLLMPreset,
   inferChatApiProfile,
   resolveJsonResponseMode,
   isDeepSeekV4Model,
@@ -15,6 +16,7 @@ const {
   shouldUseXApiKeyHeader,
   buildStreamingChatPayload,
   buildConnectivityTestPayload,
+  DEFAULT_DASHSCOPE_BASE_URL,
 } = require('../app/llm-config-utils.js');
 
 function testNormalizeBaseUrlForStorage() {
@@ -26,6 +28,10 @@ function testNormalizeBaseUrlForStorage() {
     normalizeBaseUrlForStorage('https://api.example.com/v1/'),
     'https://api.example.com/v1',
   );
+  assert.equal(
+    normalizeBaseUrlForStorage('https://dashscope.aliyuncs.com/compatible-mode/v1/'),
+    'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  );
 }
 
 function testBuildChatCompletionsEndpoint() {
@@ -36,6 +42,10 @@ function testBuildChatCompletionsEndpoint() {
   assert.equal(
     buildChatCompletionsEndpoint('https://api.example.com/custom-root'),
     'https://api.example.com/custom-root/v1/chat/completions',
+  );
+  assert.equal(
+    buildChatCompletionsEndpoint(DEFAULT_DASHSCOPE_BASE_URL),
+    'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
   );
 }
 
@@ -87,13 +97,45 @@ function testInferProviderType() {
   );
   assert.equal(
     inferProviderType({
+      llmProvider: { type: 'dashscope' },
+      summarizedLLM: {
+        apiKey: 'sk',
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        model: 'qwen-plus',
+      },
+    }),
+    'dashscope',
+  );
+  assert.equal(
+    inferProviderType({
+      summarizedLLM: {
+        apiKey: 'sk',
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        model: 'qwen-plus',
+      },
+    }),
+    'dashscope',
+  );
+  assert.equal(
+    inferProviderType({
       summarizedLLM: {
         apiKey: 'sk',
         baseUrl: 'https://example.com/v1',
         model: 'other-model',
       },
     }),
-    'deepseek',
+    'custom',
+  );
+  assert.equal(
+    inferProviderType({
+      llmProvider: { type: 'custom' },
+      summarizedLLM: {
+        apiKey: 'sk',
+        baseUrl: 'https://example.com/v1',
+        model: 'other-model',
+      },
+    }),
+    'custom',
   );
 }
 
@@ -111,6 +153,13 @@ function testGetDeepSeekPreset() {
   assert.equal(getDeepSeekPreset('other-b'), null);
   assert.equal(getDeepSeekPreset('other-c'), null);
   assert.equal(getDeepSeekPreset('other-d'), null);
+  assert.equal(getDeepSeekPreset('dashscope'), null);
+
+  const dashscope = getLLMPreset('dashscope');
+  assert.equal(dashscope.key, 'dashscope');
+  assert.equal(dashscope.baseUrl, DEFAULT_DASHSCOPE_BASE_URL);
+  assert.ok(dashscope.models.includes('qwen-plus'));
+  assert.equal(dashscope.baseUrlEditable, true);
 }
 
 function testInferChatApiProfile() {
@@ -118,8 +167,12 @@ function testInferChatApiProfile() {
     inferChatApiProfile('https://api.deepseek.com', 'deepseek-v4-flash'),
     'deepseek',
   );
-  assert.equal(inferChatApiProfile('https://example.com/v1', 'other-model'), 'unsupported');
-  assert.equal(inferChatApiProfile('https://example.com/v1', 'other-model'), 'unsupported');
+  assert.equal(
+    inferChatApiProfile(DEFAULT_DASHSCOPE_BASE_URL, 'qwen-plus'),
+    'openai_compatible',
+  );
+  assert.equal(inferChatApiProfile('https://example.com/v1', 'other-model'), 'openai_compatible');
+  assert.equal(inferChatApiProfile('', ''), 'unsupported');
 }
 
 function testResolveJsonResponseMode() {
@@ -160,6 +213,13 @@ function testResolveMaxOutputTokens() {
   );
   assert.equal(
     resolveMaxOutputTokens({
+      baseUrl: DEFAULT_DASHSCOPE_BASE_URL,
+      model: 'qwen-plus',
+    }),
+    null,
+  );
+  assert.equal(
+    resolveMaxOutputTokens({
       baseUrl: 'https://example.com/v1',
       model: 'other-model',
     }),
@@ -177,8 +237,8 @@ function testShouldUseXApiKeyHeader() {
   );
   assert.equal(
     shouldUseXApiKeyHeader({
-      baseUrl: 'https://example.com/v1',
-      model: 'other-model',
+      baseUrl: DEFAULT_DASHSCOPE_BASE_URL,
+      model: 'qwen-plus',
     }),
     true,
   );
@@ -213,6 +273,18 @@ function testBuildStreamingChatPayload() {
     },
   );
 
+  assert.deepEqual(
+    buildStreamingChatPayload({
+      baseUrl: DEFAULT_DASHSCOPE_BASE_URL,
+      model: 'qwen-plus',
+      messages: [{ role: 'user', content: 'hi' }],
+    }),
+    {
+      model: 'qwen-plus',
+      messages: [{ role: 'user', content: 'hi' }],
+      stream: true,
+    },
+  );
 }
 
 function testBuildConnectivityTestPayload() {
@@ -234,11 +306,11 @@ function testBuildConnectivityTestPayload() {
 
   assert.deepEqual(
     buildConnectivityTestPayload({
-      baseUrl: 'https://api.deepseek.com',
-      model: 'deepseek-v4-flash',
+      baseUrl: DEFAULT_DASHSCOPE_BASE_URL,
+      model: 'qwen-plus',
     }),
     {
-      model: 'deepseek-v4-flash',
+      model: 'qwen-plus',
       messages: [
         { role: 'system', content: 'Reply with exactly: hello world' },
         { role: 'user', content: 'hello world' },

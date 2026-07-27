@@ -83,6 +83,15 @@ window.PrivateDiscussionChat = (function () {
     ) {
       return 'deepseek';
     }
+    if (
+      /dashscope\.aliyuncs\.com/i.test(normalizedBaseUrl)
+      || /dashscope-intl\.aliyuncs\.com/i.test(normalizedBaseUrl)
+      || /compatible-mode/i.test(normalizedBaseUrl)
+      || /^qwen[\w.-]*$/i.test(normalizedModel)
+      || normalizedBaseUrl
+    ) {
+      return 'openai_compatible';
+    }
     return 'unsupported';
   };
 	  const buildStreamingChatPayload = (baseUrl, model, messages) => {

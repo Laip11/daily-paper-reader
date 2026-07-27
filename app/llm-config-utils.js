@@ -12,14 +12,41 @@
     'deepseek-v4-flash',
     'deepseek-v4-pro',
   ];
+  const DEFAULT_DASHSCOPE_BASE_URL =
+    'https://dashscope.aliyuncs.com/compatible-mode/v1';
+  const DEFAULT_DASHSCOPE_CHAT_MODELS = [
+    'qwen-plus',
+    'qwen-turbo',
+    'qwen-max',
+    'qwen3-max',
+  ];
   const DEEPSEEK_V4_MAX_OUTPUT_TOKENS = 393216;
-  const DEEPSEEK_PRESETS = Object.freeze({
+  const LLM_PRESETS = Object.freeze({
     deepseek: Object.freeze({
       key: 'deepseek',
       label: 'DeepSeek 官方',
-      baseUrl: 'https://api.deepseek.com',
-      models: Object.freeze(['deepseek-v4-flash', 'deepseek-v4-pro']),
+      baseUrl: DEFAULT_DEEPSEEK_BASE_URL,
+      models: Object.freeze([...DEFAULT_DEEPSEEK_CHAT_MODELS]),
+      baseUrlEditable: false,
     }),
+    dashscope: Object.freeze({
+      key: 'dashscope',
+      label: '阿里云 DashScope',
+      baseUrl: DEFAULT_DASHSCOPE_BASE_URL,
+      models: Object.freeze([...DEFAULT_DASHSCOPE_CHAT_MODELS]),
+      baseUrlEditable: true,
+    }),
+    custom: Object.freeze({
+      key: 'custom',
+      label: '自定义 OpenAI 兼容',
+      baseUrl: '',
+      models: Object.freeze([]),
+      baseUrlEditable: true,
+    }),
+  });
+  // Backward-compatible alias used by older callers / tests.
+  const DEEPSEEK_PRESETS = Object.freeze({
+    deepseek: LLM_PRESETS.deepseek,
   });
 
   const normalizeText = (value) => String(value || '').trim();
@@ -109,36 +136,78 @@
     };
   };
 
-  const inferProviderType = (secret) => {
-    const safeSecret = secret && typeof secret === 'object' ? secret : {};
-    const llmProvider = safeSecret.llmProvider || {};
-    const explicit = normalizeText(llmProvider.type || llmProvider.provider || '').toLowerCase();
-    if (explicit === 'deepseek') {
+  const isDashScopeBaseUrl = (baseUrl) => {
+    const normalized = normalizeBaseUrlForStorage(baseUrl || '').toLowerCase();
+    return (
+      /dashscope\.aliyuncs\.com/i.test(normalized)
+      || /dashscope-intl\.aliyuncs\.com/i.test(normalized)
+      || /compatible-mode/i.test(normalized)
+    );
+  };
+
+  const isDeepSeekBaseUrl = (baseUrl) => {
+    const normalized = normalizeBaseUrlForStorage(baseUrl || '').toLowerCase();
+    return /(^|\/\/)(api\.)?deepseek\.com(?:$|\/)/i.test(normalized);
+  };
+
+  const inferProviderTypeFromBaseUrl = (baseUrl, model) => {
+    if (isDeepSeekBaseUrl(baseUrl) || normalizeText(model).toLowerCase().startsWith('deepseek-')) {
       return 'deepseek';
+    }
+    if (isDashScopeBaseUrl(baseUrl) || /^qwen[\w.-]*$/i.test(normalizeText(model))) {
+      return 'dashscope';
+    }
+    if (normalizeBaseUrlForStorage(baseUrl || '')) {
+      return 'custom';
     }
     return 'deepseek';
   };
 
-  const getDeepSeekPreset = (key) => {
+  const inferProviderType = (secret) => {
+    const safeSecret = secret && typeof secret === 'object' ? secret : {};
+    const llmProvider = safeSecret.llmProvider || {};
+    const explicit = normalizeText(llmProvider.type || llmProvider.provider || '').toLowerCase();
+    if (explicit === 'deepseek' || explicit === 'dashscope' || explicit === 'custom') {
+      return explicit;
+    }
+    const summary = resolveSummaryLLM(safeSecret) || {};
+    return inferProviderTypeFromBaseUrl(summary.baseUrl, summary.model);
+  };
+
+  const getLLMPreset = (key) => {
     const presetKey = normalizeText(key).toLowerCase();
-    const preset = DEEPSEEK_PRESETS[presetKey];
+    const preset = LLM_PRESETS[presetKey];
     if (!preset) return null;
     return {
       key: preset.key,
       label: preset.label,
       baseUrl: preset.baseUrl,
       models: [...preset.models],
+      baseUrlEditable: !!preset.baseUrlEditable,
+    };
+  };
+
+  const getDeepSeekPreset = (key) => {
+    const preset = getLLMPreset(key);
+    if (!preset || preset.key !== 'deepseek') return null;
+    return {
+      key: preset.key,
+      label: preset.label,
+      baseUrl: preset.baseUrl,
+      models: preset.models,
     };
   };
 
   const inferChatApiProfile = (baseUrl, model) => {
-    const normalizedBaseUrl = normalizeBaseUrlForStorage(baseUrl || '').toLowerCase();
     const normalizedModel = normalizeText(model || '').toLowerCase();
-    if (/(^|\/\/)(api\.)?deepseek\.com(?:$|\/)/i.test(normalizedBaseUrl)) {
+    if (isDeepSeekBaseUrl(baseUrl) || normalizedModel.startsWith('deepseek-')) {
       return 'deepseek';
     }
-    if (normalizedModel.startsWith('deepseek-')) {
-      return 'deepseek';
+    if (isDashScopeBaseUrl(baseUrl) || /^qwen[\w.-]*$/i.test(normalizedModel)) {
+      return 'openai_compatible';
+    }
+    if (normalizeBaseUrlForStorage(baseUrl || '')) {
+      return 'openai_compatible';
     }
     return 'unsupported';
   };
@@ -199,7 +268,10 @@
   return {
     DEFAULT_DEEPSEEK_BASE_URL,
     DEFAULT_DEEPSEEK_CHAT_MODELS,
+    DEFAULT_DASHSCOPE_BASE_URL,
+    DEFAULT_DASHSCOPE_CHAT_MODELS,
     DEEPSEEK_PRESETS,
+    LLM_PRESETS,
     normalizeText,
     normalizeBaseUrlForStorage,
     buildChatCompletionsEndpoint,
@@ -207,6 +279,10 @@
     resolveChatModels,
     resolveSummaryLLM,
     inferProviderType,
+    inferProviderTypeFromBaseUrl,
+    isDashScopeBaseUrl,
+    isDeepSeekBaseUrl,
+    getLLMPreset,
     getDeepSeekPreset,
     inferChatApiProfile,
     resolveJsonResponseMode,
