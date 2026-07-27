@@ -25,3 +25,84 @@ subscriptions:
     stage: A
     diff_threshold_pct: 15
   keyword_recall_mode: or
+  intent_profiles:
+    - tag: arc
+      description: 帮我找一下agentic rl关于信用分配的典型的论文
+      enabled: true
+      paper_sources:
+        - arxiv
+      keywords:
+        - keyword: agentic reinforcement learning
+          keyword_cn: 基于智能体的强化学习
+          query: >-
+            reinforcement learning systems with autonomous agent architectures that plan, reason, and act over extended
+            horizons
+        - keyword: credit assignment problem
+          keyword_cn: 信用分配问题
+          query: >-
+            the challenge of attributing reward signals to specific actions or decisions in long-horizon sequential
+            decision making
+        - keyword: multi-step credit assignment
+          keyword_cn: 多步信用分配
+          query: reward attribution across non-Markovian or delayed feedback sequences in agent-based RL
+        - keyword: agent planning credit
+          keyword_cn: 智能体规划中的信用分配
+          query: credit assignment mechanisms integrated with explicit planning modules in autonomous agents
+      intent_queries:
+        - query: What are foundational papers on credit assignment in agentic reinforcement learning frameworks?
+          query_cn: 在基于智能体的强化学习框架中，关于信用分配的基础性论文有哪些？
+          enabled: true
+          source: manual
+          note: ''
+      updated_at: '2026-07-27T17:16:09.140Z'
+    - tag: llm-judge-rm
+      description: 帮我找一下关于LLM-as-a-judge/reward model相关的论文，还有就是如何得到更细粒度的奖励
+      enabled: true
+      paper_sources:
+        - arxiv
+      keywords:
+        - keyword: reward model
+          keyword_cn: 奖励模型
+          query: neural model trained to predict scalar rewards for text outputs given prompts and responses
+        - keyword: LLM as judge
+          keyword_cn: 大语言模型作为评判器
+          query: large language model used as evaluation agent for preference scoring or reward assignment
+        - keyword: reward modeling
+          keyword_cn: 奖励建模
+          query: learning a reward function from human feedback or preference data to guide reinforcement learning
+        - keyword: evaluation rubric
+          keyword_cn: 评估量规
+          query: structured scoring criteria with defined dimensions and levels for assessing text generation quality
+        - keyword: judgment consistency
+          keyword_cn: 评判一致性
+          query: measuring agreement among different judges or LLM-based evaluators on quality assessments
+        - keyword: fine-grained reward
+          keyword_cn: 细粒度奖励
+          query: reward signal with detailed dimensional breakdown such as coherence, factuality, helpfulness, or safety
+      intent_queries:
+        - query: What methods enable reward models to produce granular, attribute level scores instead of scalar rewards?
+          query_cn: 有哪些方法能让奖励模型输出按属性划分的细粒度评分，而非单一标量奖励？
+          enabled: true
+          source: generated
+          note: ''
+        - query: How can reward modeling be extended to support interpretable and decomposable reward signals?
+          query_cn: 如何扩展奖励建模以支持可解释且可分解的奖励信号？
+          enabled: true
+          source: generated
+          note: ''
+      updated_at: '2026-07-27T17:19:51.361Z'
+source_backends:
+  arxiv:
+    papers_table: arxiv_papers
+    use_vector_rpc: true
+    vector_rpc: match_arxiv_papers
+    vector_rpc_exact: match_arxiv_papers_exact
+    use_bm25_rpc: true
+    bm25_rpc: match_arxiv_papers_bm25
+    sync_table: arxiv_sync_status
+    sync_success_value: success
+    schema: public
+    kind: supabase
+    enabled: true
+    url: https://lyucdwgefyfbmaiopjbk.supabase.co
+    anon_key: sb_publishable_lX-oi64Uxyd7SIVv3_w2Uw_MTOojeKq
