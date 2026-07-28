@@ -1,14 +1,14 @@
 {
   "mode": "skims",
-  "generated_at": "2026-07-28T01:17:36.908680+00:00",
+  "generated_at": "2026-07-28T03:43:02.016409+00:00",
   "stats": {
     "mode": "skims",
-    "tag_count": 2,
+    "tag_count": 1,
     "deep_divecandidates": 0,
     "deep_cap": null,
     "deep_selected": 0,
     "quick_candidates": 0,
-    "quick_skim_target": 2,
+    "quick_skim_target": 1,
     "quick_selected": 0
   },
   "deep_dive": [],
